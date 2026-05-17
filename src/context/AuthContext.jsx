@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import db from '../lib/db';
+import { seedExercises } from '../lib/exercises-db';
 
 const AuthContext = createContext(null);
 
@@ -17,6 +18,7 @@ export function AuthProvider({ children }) {
         db.setUser(user);
         loadTrainerSettings(user);
         db.seedTemplates().catch(console.error);
+        seedExercises(db).catch(console.error);
       }
       setLoading(false);
     });
@@ -30,6 +32,7 @@ export function AuthProvider({ children }) {
         loadTrainerSettings(currentUser);
         if (event === 'SIGNED_IN') {
           db.seedTemplates().catch(console.error);
+          seedExercises(db).catch(console.error);
         }
       } else {
         db.setUser(null);

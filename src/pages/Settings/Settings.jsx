@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import db from '../../lib/db';
 import { useToast } from '../../components/Toast/Toast';
 import { useAuth } from '../../context/AuthContext';
+import { exportBackup, importBackup, exportCSV } from '../../lib/backup';
 
 export default function Settings() {
   const { trainerName, trainerCref, refreshSettings, signOut } = useAuth();
@@ -29,28 +30,13 @@ export default function Settings() {
   }
 
   async function handleExport() {
-    const stores = ['students','workouts','sessions','assessments','biofeedback','financial','calendar_events','macrocycles','exercises'];
-    const backup = {};
-    for (const s of stores) backup[s] = await db.getAll(s);
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `personal-pro-backup-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    notify('Backup exportado!', 'success');
+    await exportBackup(notify);
   }
 
   async function handleImport(e) {
     const file = e.target.files[0];
     if (!file) return;
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      for (const [store, items] of Object.entries(data)) {
-        for (const item of (items||[])) await db.put(store, item);
-      }
-      notify('Backup importado com sucesso!', 'success');
-    } catch { notify('Erro ao importar backup', 'error'); }
+    await importBackup(file, notify);
     e.target.value = '';
   }
 
