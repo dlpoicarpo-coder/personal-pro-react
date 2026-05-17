@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import db from '../../lib/db';
 import Modal from '../../components/Modal/Modal';
 import { useToast } from '../../components/Toast/Toast';
+import { sendWhatsApp, reminderMsg, preFormMsg, postFormMsg } from '../../lib/whatsapp';
 
 const GOALS = ['Hipertrofia', 'Emagrecimento', 'Condicionamento', 'Força', 'Saúde', 'Reabilitação', 'Performance'];
 const STATUSES = ['Ativo', 'Inativo', 'Pausado'];
@@ -111,6 +112,17 @@ export default function Students() {
                 </div>
                 <div className="student-actions">
                   <span className={`badge badge-${s.status === 'Ativo' ? 'success' : s.status === 'Inativo' ? 'danger' : 'warning'}`}>{s.status}</span>
+                  {s.phone && (
+                    <button className="btn btn-sm" style={{ background:'#25D366', color:'#fff', border:'none' }}
+                      title="Enviar lembrete WhatsApp"
+                      onClick={() => sendWhatsApp(s.phone, reminderMsg(s.name, 'Treino de hoje', new Date().toLocaleDateString('pt-BR'), '--'))}>
+                      💬 WA
+                    </button>
+                  )}
+                  <button className="btn btn-sm btn-outline" title="Link Pré-Treino"
+                    onClick={() => { const l=`${window.location.origin}/form/pre/${s.id}`; if(s.phone) sendWhatsApp(s.phone, preFormMsg(s.name, l)); else navigator.clipboard.writeText(l); notify('Link copiado!','info'); }}>
+                    📝 Pré
+                  </button>
                   <button className="btn btn-sm btn-outline" onClick={() => openEdit(s)}>Editar</button>
                   <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s)}>Excluir</button>
                 </div>
