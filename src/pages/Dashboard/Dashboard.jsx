@@ -9,27 +9,24 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
 function Avatar({ name, size = 'sm', style = {} }) {
   const initials = name?.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
-  const sz = size === 'sm' ? 36 : 48;
   return (
-    <div style={{ width: sz, height: sz, borderRadius: '50%', background: 'linear-gradient(135deg,var(--accent),#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: size === 'sm' ? '0.75rem' : '0.95rem', color: '#fff', flexShrink: 0, ...style }}>
+    <div className={`avatar avatar-${size}`} style={style}>
       {initials}
     </div>
   );
 }
 
-function StatCard({ value, label, sub, subColor }) {
+function StatCard({ value, label, sub, subClass = '' }) {
   return (
     <div className="stat-card">
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: '2rem', fontWeight: 800, background: 'linear-gradient(135deg,var(--accent),#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{value}</div>
-        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500, marginTop: 2 }}>{label}</div>
-        {sub && <div style={{ fontSize: '0.75rem', color: subColor || 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
-      </div>
+      <div className="stat-value text-gradient">{value}</div>
+      <div className="stat-label">{label}</div>
+      {sub && <div className={`stat-change ${subClass}`}>{sub}</div>}
     </div>
   );
 }
 
-const rowStyle = { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '8px 0', borderBottom: '1px solid var(--border)' };
+const rowStyle = { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '8px 0', borderBottom: '1px solid var(--border-color)' };
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -110,16 +107,16 @@ export default function Dashboard() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">{dateStr}</p>
+          <p className="subtitle">{dateStr}</p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/tracker')}>▶ Iniciar Treino</button>
       </div>
 
       {/* KPI Stats */}
-      <div className="stats-grid">
-        <StatCard value={activeStudents.length} label="Alunos Ativos" sub={`de ${students.length} cadastrados`} />
+      <div className="stats-grid stagger-children">
+        <StatCard value={activeStudents.length} label="Alunos Ativos" sub={`de ${students.length} cadastrados`} subClass="positive" />
         <StatCard value={monthSessions.length} label="Sessões no Mês"
-          sub={`${adherenceRate}% de adesão`} subColor={adherenceRate >= 70 ? 'var(--accent)' : '#ef4444'} />
+          sub={`${adherenceRate}% de adesão`} subClass={adherenceRate >= 70 ? 'positive' : 'negative'} />
         <StatCard value={monthRevenue > 0 ? `R$ ${Math.round(monthRevenue).toLocaleString('pt-BR')}` : '—'}
           label="Receita do Mês" sub={now.toLocaleDateString('pt-BR', { month: 'long' })} />
         <StatCard value={avgSleep} label="Média de Sono" sub="últimos check-ins" />
@@ -127,14 +124,15 @@ export default function Dashboard() {
 
       {/* Biofeedback Alerts */}
       {alerts.length > 0 && (
-        <div className="card mb-lg" style={{ borderColor: 'rgba(245,158,11,0.4)', background: 'rgba(245,158,11,0.05)' }}>
+        <div className="card mt-lg" style={{ borderColor: 'rgba(245,158,11,0.4)', background: 'rgba(245,158,11,0.05)' }}>
           <div className="card-header">
-            <span className="card-title" style={{ color: '#f59e0b' }}>
-              ⚠️ Alertas de Biofeedback ({alerts.length})
+            <span className="card-title" style={{ color: 'var(--warning)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{verticalAlign: '-2px', marginRight: 6}}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Alertas de Biofeedback ({alerts.length})
             </span>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate('/biofeedback')}>Ver todos →</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/biofeedback')}>Ver todos →</button>
           </div>
-          <div style={{ padding: '0 1.5rem' }}>
+          <div>
             {alerts.slice(0, 3).map((b, i) => {
               const st = getStudent(b.studentId);
               const issues = [];
@@ -142,13 +140,13 @@ export default function Dashboard() {
               if ((b.estresse || 0) >= 8) issues.push(`Estresse alto: ${b.estresse}/10`);
               if ((b.dorMuscular || 0) >= 6) issues.push(`Dor: ${b.dorMuscular}/10`);
               return (
-                <div key={i} style={{ ...rowStyle }}>
-                  <Avatar name={st?.name || '?'} style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }} />
+                <div key={i} className="flex items-center gap-md" style={{ padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
+                  <Avatar name={st?.name || '?'} style={{ background: 'rgba(245,158,11,0.2)', color: 'var(--warning)' }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{st?.name || 'Aluno'}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#f59e0b' }}>{issues.join(' · ')}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--warning)' }}>{issues.join(' · ')}</div>
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{Calc.formatDate(b.date)}</span>
+                  <span className="text-xs text-muted">{Calc.formatDate(b.date)}</span>
                 </div>
               );
             })}
@@ -157,18 +155,18 @@ export default function Dashboard() {
       )}
 
       {/* Grid: Treinos Hoje + Alunos Ativos */}
-      <div className="charts-grid mb-lg">
+      <div className="grid-2 mt-lg">
         <div className="card">
           <div className="card-header">
             <span className="card-title">Treinos Hoje</span>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate('/agenda')}>Agenda →</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/agenda')}>Agenda →</button>
           </div>
           {todaySchedules.length > 0 ? (
-            <div style={{ padding: '0 1.5rem' }}>
+            <div>
               {todaySchedules.slice(0, 5).map((s, i) => {
                 const st = getStudent(s.studentId);
                 return (
-                  <div key={i} style={rowStyle}>
+                  <div key={i} className="flex items-center gap-md" style={{ padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
                     <Avatar name={st?.name || '?'} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{st?.name || 'Aluno'}</div>
@@ -190,22 +188,22 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-header">
             <span className="card-title">Alunos Ativos</span>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate('/alunos')}>Ver todos →</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/alunos')}>Ver todos →</button>
           </div>
           {activeStudents.length > 0 ? (
-            <div style={{ padding: '0 1.5rem' }}>
+            <div>
               {activeStudents.slice(0, 5).map((s, i) => {
                 // last completed session
                 const lastSession = data.students && [...(data.monthSessions || [])].filter(x => x.studentId === s.id).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
                 const daysSince = lastSession ? Math.floor((now - new Date(lastSession.date)) / 86400000) : null;
                 return (
-                  <div key={i} style={rowStyle}>
+                  <div key={i} className="flex items-center gap-md" style={{ padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
                     <Avatar name={s.name} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{s.goal || 'Sem objetivo'}</div>
                     </div>
-                    {daysSince !== null && <span style={{ fontSize: '0.75rem', color: daysSince > 7 ? '#f59e0b' : 'var(--accent)' }}>{daysSince}d</span>}
+                    {daysSince !== null && <span className="text-xs" style={{ color: daysSince > 7 ? 'var(--warning)' : 'var(--success)' }}>{daysSince}d</span>}
                   </div>
                 );
               })}
@@ -220,27 +218,27 @@ export default function Dashboard() {
       </div>
 
       {/* Grid: Biofeedback + Reavaliação Pendente */}
-      <div className="charts-grid mb-lg">
+      <div className="grid-2 mt-lg">
         <div className="card">
           <div className="card-header">
             <span className="card-title">Biofeedback Recente</span>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate('/biofeedback')}>Ver todos →</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/biofeedback')}>Ver todos →</button>
           </div>
           {recentBf.length > 0 ? (
-            <div style={{ padding: '0 1.5rem' }}>
+            <div>
               {recentBf.slice(0, 5).map((b, i) => {
                 const st = getStudent(b.studentId);
                 const sleepColor = (b.sono || 0) < 5 ? '#ef4444' : (b.sono || 0) < 7 ? '#f59e0b' : 'var(--accent)';
                 return (
-                  <div key={i} style={rowStyle}>
+                  <div key={i} className="flex items-center gap-md" style={{ padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
                     <Avatar name={st?.name || '?'} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{st?.name || 'Aluno'}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{Calc.formatDate(b.date)}</div>
+                      <div className="text-muted text-xs">{Calc.formatDate(b.date)}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
+                    <div className="flex gap-sm text-xs">
                       <span style={{ color: sleepColor }}>Sono {b.sono || '—'}</span>
-                      <span style={{ color: 'var(--text-muted)' }}>Humor {b.humor || '—'}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>Disp {b.humor || '—'}</span>
                       <span>Est {b.estresse || '—'}</span>
                     </div>
                   </div>
@@ -257,21 +255,21 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-header">
             <span className="card-title">Reavaliação Pendente</span>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate('/avaliacoes')}>Avaliações →</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/avaliacoes')}>Avaliações →</button>
           </div>
           {needsAssessment.length > 0 ? (
-            <div style={{ padding: '0 1.5rem' }}>
+            <div>
               {needsAssessment.slice(0, 5).map((s, i) => {
                 const lastAss = data.students && [...([] /* assessments filtered */)]
                   .filter(a => a.studentId === s.id).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
                 return (
-                  <div key={i} style={rowStyle}>
+                  <div key={i} className="flex items-center gap-md" style={{ padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
                     <Avatar name={s.name} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Nunca avaliado</div>
+                      <div className="text-xs text-muted">{lastAss ? 'Última: ' + Calc.formatDate(lastAss.date) : 'Nunca avaliado'}</div>
                     </div>
-                    <button className="btn btn-outline btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => navigate('/avaliacoes')}>Avaliar</button>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => navigate('/avaliacoes')}>Avaliar</button>
                   </div>
                 );
               })}
@@ -285,9 +283,9 @@ export default function Dashboard() {
       </div>
 
       {/* Weekly Chart */}
-      <div className="card">
+      <div className="card mt-lg">
         <div className="card-header"><span className="card-title">Atividade Semanal</span></div>
-        <div style={{ height: 220, padding: '1rem 1.5rem' }}>
+        <div style={{ height: 220, position: 'relative' }}>
           <Bar data={chartData} options={chartOpts} />
         </div>
       </div>
