@@ -1,199 +1,296 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import db from '../../lib/db';
-import { useAuth } from '../../context/AuthContext';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import {
-  Chart as ChartJS, CategoryScale, LinearScale, PointElement,
-  LineElement, BarElement, ArcElement, Tooltip, Legend, Filler
-} from 'chart.js';
+import { Calc } from '../../lib/calculations';
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip } from 'chart.js';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend, Filler);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
-const chartOpts = (title) => ({
-  responsive: true, maintainAspectRatio: false,
-  plugins: { legend: { labels: { color: 'var(--text-secondary)', font: { family: 'Inter' } } } },
-  scales: {
-    x: { ticks: { color: 'var(--text-muted)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-    y: { ticks: { color: 'var(--text-muted)' }, grid: { color: 'rgba(255,255,255,0.05)' } }
-  }
-});
+function Avatar({ name, size = 'sm', style = {} }) {
+  const initials = name?.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
+  const sz = size === 'sm' ? 36 : 48;
+  return (
+    <div style={{ width: sz, height: sz, borderRadius: '50%', background: 'linear-gradient(135deg,var(--accent),#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: size === 'sm' ? '0.75rem' : '0.95rem', color: '#fff', flexShrink: 0, ...style }}>
+      {initials}
+    </div>
+  );
+}
+
+function StatCard({ value, label, sub, subColor }) {
+  return (
+    <div className="stat-card">
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '2rem', fontWeight: 800, background: 'linear-gradient(135deg,var(--accent),#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{value}</div>
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500, marginTop: 2 }}>{label}</div>
+        {sub && <div style={{ fontSize: '0.75rem', color: subColor || 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+const rowStyle = { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '8px 0', borderBottom: '1px solid var(--border)' };
 
 export default function Dashboard() {
-  const { trainerName } = useAuth();
-  const [stats, setStats] = useState({ students: 0, activeStudents: 0, sessions: 0, workouts: 0, revenue: 0 });
-  const [recentSessions, setRecentSessions] = useState([]);
-  const [sessionsChartData, setSessionsChartData] = useState(null);
-  const [studentStatusData, setStudentStatusData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  async function loadDashboardData() {
-    try {
-      const [students, sessions, workouts, financial] = await Promise.all([
-        db.getAll('students'),
-        db.getAll('sessions'),
-        db.getAll('workouts'),
-        db.getAll('financial'),
-      ]);
+  async function load() {
+    const [students, workouts, assessments, biofeedback, sessions, schedules, financial] = await Promise.all([
+      db.getAll('students'), db.getAll('workouts'), db.getAll('assessments'),
+      db.getAll('biofeedback'), db.getAll('sessions'), db.getAll('calendar_events'), db.getAll('financial')
+    ]);
 
-      const activeStudents = students.filter(s => s.status === 'Ativo').length;
-      const revenue = financial.filter(f => f.status === 'Pago').reduce((s, f) => s + (f.amount || 0), 0);
+    const now = new Date();
+    const thisMonth = now.getMonth(), thisYear = now.getFullYear();
+    const activeStudents = students.filter(s => s.status === 'Ativo');
 
-      setStats({
-        students: students.length,
-        activeStudents,
-        sessions: sessions.length,
-        workouts: workouts.length,
-        revenue
-      });
+    const monthSessions = sessions.filter(s => {
+      if (s.status !== 'completed') return false;
+      const d = new Date(s.date);
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+    });
 
-      // Recent sessions (last 5)
-      const sorted = [...sessions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-      const withNames = await Promise.all(sorted.map(async s => {
-        const student = await db.get('students', s.studentId);
-        return { ...s, studentName: student?.name || 'Aluno' };
-      }));
-      setRecentSessions(withNames);
+    const todayStr = now.toISOString().slice(0, 10);
+    const todaySchedules = schedules.filter(s => (s.date === todayStr || s.weekdays?.includes(now.getDay())) && s.studentId);
 
-      // Sessions per last 7 days
-      const last7 = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(); d.setDate(d.getDate() - (6 - i));
-        return d.toISOString().slice(0, 10);
-      });
-      const sessPerDay = last7.map(day => sessions.filter(s => s.date?.slice(0, 10) === day).length);
-      setSessionsChartData({
-        labels: last7.map(d => d.slice(5)),
-        datasets: [{
-          label: 'Sessões',
-          data: sessPerDay,
-          fill: true,
-          backgroundColor: 'rgba(16,185,129,0.15)',
-          borderColor: '#10b981',
-          tension: 0.4
-        }]
-      });
+    const monthRevenue = financial
+      .filter(f => { if (f.status !== 'Pago') return false; const d = new Date(f.paidDate || f.dueDate || 0); return d.getMonth() === thisMonth && d.getFullYear() === thisYear; })
+      .reduce((t, f) => t + (parseFloat(f.amount) || 0), 0);
 
-      // Student status donut
-      const ativo = activeStudents;
-      const inativo = students.filter(s => s.status === 'Inativo').length;
-      const pausado = students.filter(s => s.status === 'Pausado').length;
-      setStudentStatusData({
-        labels: ['Ativos', 'Inativos', 'Pausados'],
-        datasets: [{
-          data: [ativo, inativo, pausado],
-          backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
-          borderWidth: 0
-        }]
-      });
-    } catch (e) {
-      console.error('Dashboard load error:', e);
-    } finally {
-      setLoading(false);
-    }
+    const monthScheduled = schedules.filter(s => { const d = new Date(s.date); return d.getMonth() === thisMonth && d.getFullYear() === thisYear; });
+    const adherenceRate = monthScheduled.length > 0 ? Math.round((monthSessions.length / monthScheduled.length) * 100) : 0;
+
+    const recentBf = [...biofeedback].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+    const avgSleep = recentBf.length ? (recentBf.reduce((s, b) => s + (b.sono || 0), 0) / recentBf.length).toFixed(1) : '—';
+    const alerts = recentBf.filter(b => (b.sono || 10) < 5 || (b.estresse || 0) >= 8 || (b.dorMuscular || 0) >= 6);
+
+    const needsAssessment = activeStudents.filter(s => {
+      const last = assessments.filter(a => a.studentId === s.id).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+      if (!last) return true;
+      return (now - new Date(last.date)) > 30 * 86400000;
+    });
+
+    // Weekly bar chart data (sessions per weekday, last 7 days)
+    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const weekData = new Array(7).fill(0);
+    sessions.forEach(s => {
+      const d = new Date(s.date);
+      const diff = Math.floor((now - d) / 86400000);
+      if (diff >= 0 && diff < 7) weekData[d.getDay()]++;
+    });
+
+    setData({ students, activeStudents, monthSessions, todaySchedules, monthRevenue, adherenceRate, avgSleep, alerts, needsAssessment, recentBf, days, weekData, now });
   }
 
-  if (loading) return <div className="page-loading"><div className="spinner" /></div>;
+  if (!data) return <div className="page-loading"><div className="spinner" /></div>;
+  const { students, activeStudents, monthSessions, todaySchedules, monthRevenue, adherenceRate, avgSleep, alerts, needsAssessment, recentBf, days, weekData, now } = data;
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const getStudent = id => students.find(s => s.id === id);
+  const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const chartData = {
+    labels: days,
+    datasets: [{ label: 'Sessões', data: weekData, backgroundColor: 'rgba(16,185,129,0.6)', borderColor: 'rgb(16,185,129)', borderWidth: 1, borderRadius: 6 }]
+  };
+  const chartOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1, color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+    }
+  };
 
   return (
     <div className="page">
+      {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">{greeting}, {trainerName.split(' ')[0]}! 👋</h1>
-          <p className="page-subtitle">Visão geral da sua plataforma</p>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">{dateStr}</p>
         </div>
+        <button className="btn btn-primary" onClick={() => navigate('/tracker')}>▶ Iniciar Treino</button>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Stats */}
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#10b981,#06b6d4)' }}>👥</div>
-          <div className="stat-info">
-            <div className="stat-value">{stats.activeStudents}</div>
-            <div className="stat-label">Alunos Ativos</div>
-          </div>
-          <div className="stat-sub">de {stats.students} total</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>💪</div>
-          <div className="stat-info">
-            <div className="stat-value">{stats.sessions}</div>
-            <div className="stat-label">Sessões Realizadas</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}>📋</div>
-          <div className="stat-info">
-            <div className="stat-value">{stats.workouts}</div>
-            <div className="stat-label">Treinos Criados</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>💰</div>
-          <div className="stat-info">
-            <div className="stat-value">R$ {stats.revenue.toFixed(2)}</div>
-            <div className="stat-label">Receita Confirmada</div>
-          </div>
-        </div>
+        <StatCard value={activeStudents.length} label="Alunos Ativos" sub={`de ${students.length} cadastrados`} />
+        <StatCard value={monthSessions.length} label="Sessões no Mês"
+          sub={`${adherenceRate}% de adesão`} subColor={adherenceRate >= 70 ? 'var(--accent)' : '#ef4444'} />
+        <StatCard value={monthRevenue > 0 ? `R$ ${Math.round(monthRevenue).toLocaleString('pt-BR')}` : '—'}
+          label="Receita do Mês" sub={now.toLocaleDateString('pt-BR', { month: 'long' })} />
+        <StatCard value={avgSleep} label="Média de Sono" sub="últimos check-ins" />
       </div>
 
-      {/* Charts Row */}
-      <div className="charts-grid">
-        {sessionsChartData && (
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Sessões — Últimos 7 dias</span>
-            </div>
-            <div style={{ height: 220 }}>
-              <Line data={sessionsChartData} options={chartOpts('Sessões')} />
-            </div>
-          </div>
-        )}
-        {studentStatusData && (
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Status dos Alunos</span>
-            </div>
-            <div style={{ height: 220, display: 'flex', justifyContent: 'center' }}>
-              <Doughnut data={studentStatusData} options={{ ...chartOpts(), scales: undefined }} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Recent Sessions */}
-      {recentSessions.length > 0 && (
-        <div className="card">
+      {/* Biofeedback Alerts */}
+      {alerts.length > 0 && (
+        <div className="card mb-lg" style={{ borderColor: 'rgba(245,158,11,0.4)', background: 'rgba(245,158,11,0.05)' }}>
           <div className="card-header">
-            <span className="card-title">Sessões Recentes</span>
+            <span className="card-title" style={{ color: '#f59e0b' }}>
+              ⚠️ Alertas de Biofeedback ({alerts.length})
+            </span>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate('/biofeedback')}>Ver todos →</button>
           </div>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Aluno</th>
-                <th>Data</th>
-                <th>Duração</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentSessions.map(s => (
-                <tr key={s.id}>
-                  <td>{s.studentName}</td>
-                  <td>{s.date ? new Date(s.date).toLocaleDateString('pt-BR') : '—'}</td>
-                  <td>{s.duration ? `${Math.round(s.duration / 60)} min` : '—'}</td>
-                  <td><span className={`badge badge-${s.status === 'completed' ? 'success' : 'warning'}`}>{s.status || 'Em andamento'}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ padding: '0 1.5rem' }}>
+            {alerts.slice(0, 3).map((b, i) => {
+              const st = getStudent(b.studentId);
+              const issues = [];
+              if ((b.sono || 10) < 5) issues.push(`Sono baixo: ${b.sono}/10`);
+              if ((b.estresse || 0) >= 8) issues.push(`Estresse alto: ${b.estresse}/10`);
+              if ((b.dorMuscular || 0) >= 6) issues.push(`Dor: ${b.dorMuscular}/10`);
+              return (
+                <div key={i} style={{ ...rowStyle }}>
+                  <Avatar name={st?.name || '?'} style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{st?.name || 'Aluno'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#f59e0b' }}>{issues.join(' · ')}</div>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{Calc.formatDate(b.date)}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
+
+      {/* Grid: Treinos Hoje + Alunos Ativos */}
+      <div className="charts-grid mb-lg">
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Treinos Hoje</span>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate('/agenda')}>Agenda →</button>
+          </div>
+          {todaySchedules.length > 0 ? (
+            <div style={{ padding: '0 1.5rem' }}>
+              {todaySchedules.slice(0, 5).map((s, i) => {
+                const st = getStudent(s.studentId);
+                return (
+                  <div key={i} style={rowStyle}>
+                    <Avatar name={st?.name || '?'} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{st?.name || 'Aluno'}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.time || ''}{s.workoutName ? ` · ${s.workoutName}` : ''}</div>
+                    </div>
+                    <button className="btn btn-primary btn-sm" onClick={() => navigate('/tracker')}>▶</button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state" style={{ padding: '24px' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Nenhum treino agendado para hoje</p>
+              <button className="btn btn-outline btn-sm" style={{ marginTop: '0.75rem' }} onClick={() => navigate('/agenda')}>Ver Agenda</button>
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Alunos Ativos</span>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate('/alunos')}>Ver todos →</button>
+          </div>
+          {activeStudents.length > 0 ? (
+            <div style={{ padding: '0 1.5rem' }}>
+              {activeStudents.slice(0, 5).map((s, i) => {
+                // last completed session
+                const lastSession = data.students && [...(data.monthSessions || [])].filter(x => x.studentId === s.id).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+                const daysSince = lastSession ? Math.floor((now - new Date(lastSession.date)) / 86400000) : null;
+                return (
+                  <div key={i} style={rowStyle}>
+                    <Avatar name={s.name} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{s.goal || 'Sem objetivo'}</div>
+                    </div>
+                    {daysSince !== null && <span style={{ fontSize: '0.75rem', color: daysSince > 7 ? '#f59e0b' : 'var(--accent)' }}>{daysSince}d</span>}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state" style={{ padding: '24px' }}>
+              <h3 style={{ color: 'var(--text-secondary)' }}>Nenhum aluno</h3>
+              <button className="btn btn-primary btn-sm" style={{ marginTop: '0.75rem' }} onClick={() => navigate('/alunos')}>+ Novo Aluno</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Grid: Biofeedback + Reavaliação Pendente */}
+      <div className="charts-grid mb-lg">
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Biofeedback Recente</span>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate('/biofeedback')}>Ver todos →</button>
+          </div>
+          {recentBf.length > 0 ? (
+            <div style={{ padding: '0 1.5rem' }}>
+              {recentBf.slice(0, 5).map((b, i) => {
+                const st = getStudent(b.studentId);
+                const sleepColor = (b.sono || 0) < 5 ? '#ef4444' : (b.sono || 0) < 7 ? '#f59e0b' : 'var(--accent)';
+                return (
+                  <div key={i} style={rowStyle}>
+                    <Avatar name={st?.name || '?'} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{st?.name || 'Aluno'}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{Calc.formatDate(b.date)}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
+                      <span style={{ color: sleepColor }}>Sono {b.sono || '—'}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>Humor {b.humor || '—'}</span>
+                      <span>Est {b.estresse || '—'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state" style={{ padding: '24px' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Os check-ins aparecerão aqui</p>
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Reavaliação Pendente</span>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate('/avaliacoes')}>Avaliações →</button>
+          </div>
+          {needsAssessment.length > 0 ? (
+            <div style={{ padding: '0 1.5rem' }}>
+              {needsAssessment.slice(0, 5).map((s, i) => {
+                const lastAss = data.students && [...([] /* assessments filtered */)]
+                  .filter(a => a.studentId === s.id).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+                return (
+                  <div key={i} style={rowStyle}>
+                    <Avatar name={s.name} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.name}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Nunca avaliado</div>
+                    </div>
+                    <button className="btn btn-outline btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => navigate('/avaliacoes')}>Avaliar</button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state" style={{ padding: '24px' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Todos os alunos estão em dia ✅</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Weekly Chart */}
+      <div className="card">
+        <div className="card-header"><span className="card-title">Atividade Semanal</span></div>
+        <div style={{ height: 220, padding: '1rem 1.5rem' }}>
+          <Bar data={chartData} options={chartOpts} />
+        </div>
+      </div>
     </div>
   );
 }
