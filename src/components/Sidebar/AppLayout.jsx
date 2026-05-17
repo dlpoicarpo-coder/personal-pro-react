@@ -11,19 +11,20 @@ const MENU = [
   { path: '/periodizacao', label: 'Periodização', icon: '📈' },
   { path: '/avaliacoes', label: 'Avaliações', icon: '📋' },
   { path: '/biofeedback', label: 'Biofeedback', icon: '🔬' },
+  { path: '/cardio', label: 'Cardio', icon: '🏃' },
+  { path: '/semanal', label: 'Resumo Semanal', icon: '📆' },
   { path: '/financeiro', label: 'Financeiro', icon: '💰' },
   { path: '/relatorios', label: 'Relatórios', icon: '📑' },
   { path: '/exercicios', label: 'Exercícios', icon: '🏋️' },
   { path: '/anamnese', label: 'Anamnese', icon: '📝' },
+  { path: '/tutorial', label: 'Tutorial', icon: '🎓' },
   { path: '/config', label: 'Configurações', icon: '⚙️' },
 ];
 
 export default function AppLayout() {
   const { trainerName, initials, signOut } = useAuth();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(() =>
-    localStorage.getItem('pp_sidebar_collapsed') === 'true'
-  );
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('pp_sidebar_collapsed') === 'true');
 
   function toggleCollapse() {
     const next = !collapsed;
@@ -40,7 +41,6 @@ export default function AppLayout() {
   return (
     <div className={`app-layout${collapsed ? ' sidebar-collapsed' : ''}`}>
       <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
-        {/* Header */}
         <div className="sidebar-header">
           {!collapsed && (
             <div className="sidebar-brand">
@@ -56,7 +56,6 @@ export default function AppLayout() {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="sidebar-nav">
           {MENU.map(item => (
             <NavLink
@@ -72,7 +71,6 @@ export default function AppLayout() {
           ))}
         </nav>
 
-        {/* Footer */}
         <div className="sidebar-footer">
           <div className="sidebar-user">
             <div className="user-avatar">{initials}</div>
@@ -83,12 +81,7 @@ export default function AppLayout() {
               </div>
             )}
           </div>
-          <button
-            id="logoutBtn"
-            className="logout-btn"
-            onClick={handleLogout}
-            title="Sair"
-          >
+          <button id="logoutBtn" className="logout-btn" onClick={handleLogout} title="Sair">
             {collapsed ? '🚪' : '🚪 Sair'}
           </button>
         </div>

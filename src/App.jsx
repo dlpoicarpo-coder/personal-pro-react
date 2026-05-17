@@ -4,7 +4,6 @@ import { useAuth } from './context/AuthContext';
 import AppLayout from './components/Sidebar/AppLayout';
 import Login from './pages/Login/Login';
 
-// Lazy load all pages for automatic code splitting
 const Dashboard    = lazy(() => import('./pages/Dashboard/Dashboard'));
 const Students     = lazy(() => import('./pages/Students/Students'));
 const Workouts     = lazy(() => import('./pages/Workouts/Workouts'));
@@ -13,18 +12,20 @@ const Calendar     = lazy(() => import('./pages/Calendar/Calendar'));
 const Periodization= lazy(() => import('./pages/Periodization/Periodization'));
 const Assessments  = lazy(() => import('./pages/Assessments/Assessments'));
 const Biofeedback  = lazy(() => import('./pages/Biofeedback/Biofeedback'));
+const Cardio       = lazy(() => import('./pages/Cardio/Cardio'));
 const Financial    = lazy(() => import('./pages/Financial/Financial'));
 const Reports      = lazy(() => import('./pages/Reports/Reports'));
 const Exercises    = lazy(() => import('./pages/Exercises/Exercises'));
 const Anamnesis    = lazy(() => import('./pages/Anamnesis/Anamnesis'));
+const WeeklySummary= lazy(() => import('./pages/WeeklySummary/WeeklySummary'));
+const Tutorial     = lazy(() => import('./pages/Tutorial/Tutorial'));
 const Settings     = lazy(() => import('./pages/Settings/Settings'));
+const PublicPreForm     = lazy(() => import('./pages/Students/PreForm'));
+const PublicPostForm    = lazy(() => import('./pages/Students/PostForm'));
+const PublicAnamneseForm= lazy(() => import('./pages/Anamnesis/AnamneseForm'));
 
 function PageLoader() {
-  return (
-    <div className="page-loading">
-      <div className="spinner" />
-    </div>
-  );
+  return <div className="page-loading"><div className="spinner" /></div>;
 }
 
 function ProtectedRoute({ children }) {
@@ -36,7 +37,6 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   const { user, loading } = useAuth();
-
   if (loading) return <PageLoader />;
 
   return (
@@ -49,11 +49,7 @@ export default function App() {
         <Route path="/form/anamnese" element={<PublicAnamneseForm />} />
 
         {/* Protected routes inside AppLayout */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
-        }>
+        <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="alunos" element={<Students />} />
           <Route path="treinos" element={<Workouts />} />
@@ -62,10 +58,13 @@ export default function App() {
           <Route path="periodizacao" element={<Periodization />} />
           <Route path="avaliacoes" element={<Assessments />} />
           <Route path="biofeedback" element={<Biofeedback />} />
+          <Route path="cardio" element={<Cardio />} />
           <Route path="financeiro" element={<Financial />} />
           <Route path="relatorios" element={<Reports />} />
           <Route path="exercicios" element={<Exercises />} />
           <Route path="anamnese" element={<Anamnesis />} />
+          <Route path="semanal" element={<WeeklySummary />} />
+          <Route path="tutorial" element={<Tutorial />} />
           <Route path="config" element={<Settings />} />
         </Route>
 
@@ -74,8 +73,3 @@ export default function App() {
     </Suspense>
   );
 }
-
-// Inline small public form wrappers (lazy loaded)
-const PublicPreForm     = lazy(() => import('./pages/Students/PreForm'));
-const PublicPostForm    = lazy(() => import('./pages/Students/PostForm'));
-const PublicAnamneseForm= lazy(() => import('./pages/Anamnesis/AnamneseForm'));
