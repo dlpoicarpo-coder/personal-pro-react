@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import db from '../../lib/db';
 import Modal from '../../components/Modal/Modal';
-import { useToast } from '../../components/Toast/Toast';
-import { sendWhatsApp, reminderMsg, preFormMsg, postFormMsg } from '../../lib/whatsapp';
-
-const GOALS = ['Hipertrofia', 'Emagrecimento', 'Condicionamento', 'Força', 'Saúde', 'Reabilitação', 'Performance'];
+const GOALS = ['Hipertrofia', 'Emagrecimento', 'Condicionamento', 'Força Máxima', 'Saúde', 'Reabilitação', 'Performance', 'Qualidade de Vida'];
 const STATUSES = ['Ativo', 'Inativo', 'Em avaliação', 'Suspenso'];
-const ZONES = ['', 'Zona 1 - Recuperação (<65% FC)', 'Zona 2 - Aeróbico (65-75%)', 'Zona 3 - Limiar (75-80%)', 'Zona 4 - Alta Intensidade (80-90%)', 'Zona 5 - VO2 Max (90-100%)'];
+const FREQS = ['2x por semana', '3x por semana', '4x por semana', '5x por semana', '6x por semana'];
+const TIMES = ['Manhã (5-9h)', 'Manhã (9-12h)', 'Tarde (12-17h)', 'Noite (17-22h)'];
 
 const ICON_EDIT = <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
 const ICON_DELETE = <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>;
@@ -19,7 +17,7 @@ function calcAge(birth) {
   return Math.floor(diff / (365.25 * 24 * 3600 * 1000));
 }
 
-const EMPTY_STUDENT = { name: '', code: '', birthdate: '', gender: '', phone: '', email: '', goal: '', status: 'Ativo', trainingZone: '', notes: '' };
+const EMPTY_STUDENT = { name: '', code: '', birthDate: '', gender: '', phone: '', email: '', goal: '', status: 'Ativo', weeklyFrequency: '', preferredTime: '', weight: '', height: '', monthlyFee: '', notes: '' };
 
 export default function Students() {
   const notify = useToast();
@@ -55,7 +53,11 @@ export default function Students() {
     e.preventDefault();
     if (!form.name.trim()) { notify('Nome é obrigatório', 'error'); return; }
     setSaving(true);
+    
     const item = editing ? { ...editing, ...form } : { ...form };
+    if (!item.code) item.code = item.name.substring(0,3).toUpperCase() + '-' + String(Math.floor(Math.random()*900)+100);
+    if (item.birthDate) item.age = calcAge(item.birthDate);
+    
     await db.put('students', item);
     notify(editing ? 'Aluno atualizado!' : 'Aluno cadastrado!', 'success');
     setSaving(false);
@@ -112,7 +114,7 @@ export default function Students() {
           <div className="students-grid stagger-children">
             {filtered.map(s => {
               const initials = s.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-              const age = calcAge(s.birthdate);
+              const age = calcAge(s.birthDate);
               const dayColor = s._daysSince === null ? 'var(--text-muted)' : s._daysSince > 14 ? 'var(--danger)' : s._daysSince > 7 ? 'var(--warning)' : 'var(--success)';
               const phone = s.phone?.replace(/\D/g, '') || '';
               const waUrl = phone ? `https://wa.me/${phone.startsWith('55') ? phone : '55' + phone}` : null;
@@ -177,71 +179,96 @@ export default function Students() {
       )}
 
       {/* Modal */}
-      <Modal isOpen={modalOpen} onClose={closeModal} title={editing ? 'Editar Aluno' : 'Novo Aluno'} size="lg">
-        <form onSubmit={handleSave} className="form-grid">
+      <Modal isOpen={modalOpen} onClose={closeModal} title={editing ? 'Editar Aluno' : '+ Novo Aluno'} size="lg">
+        <form onSubmit={handleSave} id="studentForm">
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Nome Completo *</label>
-              <input className="form-input" value={form.name} onChange={e => field('name', e.target.value)} required />
+              <input className="form-input" value={form.name} onChange={e => field('name', e.target.value)} required placeholder="Ex: João da Silva" />
             </div>
             <div className="form-group">
               <label className="form-label">Código</label>
-              <input className="form-input" value={form.code} onChange={e => field('code', e.target.value)} placeholder="Ex: A001" />
+              <input className="form-input" value={form.code} onChange={e => field('code', e.target.value)} placeholder="Gerado automaticamente" />
             </div>
           </div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Data de Nascimento</label>
-              <input type="date" className="form-input" value={form.birthdate} onChange={e => field('birthdate', e.target.value)} />
+              <input type="date" className="form-input" value={form.birthDate} onChange={e => field('birthDate', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Gênero</label>
               <select className="form-select" value={form.gender} onChange={e => field('gender', e.target.value)}>
                 <option value="">Selecione</option>
-                <option>Masculino</option>
-                <option>Feminino</option>
-                <option>Outro</option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+                <option value="Outro">Outro</option>
               </select>
             </div>
           </div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Telefone / WhatsApp</label>
-              <input className="form-input" value={form.phone} onChange={e => field('phone', e.target.value)} placeholder="(11) 99999-9999" />
+              <input className="form-input" value={form.phone} onChange={e => field('phone', e.target.value)} placeholder="(00) 00000-0000" />
             </div>
             <div className="form-group">
-              <label className="form-label">E-mail</label>
-              <input type="email" className="form-input" value={form.email} onChange={e => field('email', e.target.value)} />
+              <label className="form-label">Email</label>
+              <input type="email" className="form-input" value={form.email} onChange={e => field('email', e.target.value)} placeholder="email@exemplo.com" />
             </div>
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Objetivo</label>
+              <label className="form-label">Objetivo Principal</label>
               <select className="form-select" value={form.goal} onChange={e => field('goal', e.target.value)}>
                 <option value="">Selecione</option>
-                {GOALS.map(g => <option key={g}>{g}</option>)}
+                {GOALS.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label">Status</label>
               <select className="form-select" value={form.status} onChange={e => field('status', e.target.value)}>
-                {STATUSES.map(s => <option key={s}>{s}</option>)}
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Frequência Semanal</label>
+              <select className="form-select" value={form.weeklyFrequency} onChange={e => field('weeklyFrequency', e.target.value)}>
+                <option value="">Selecione</option>
+                {FREQS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Horário Preferido</label>
+              <select className="form-select" value={form.preferredTime} onChange={e => field('preferredTime', e.target.value)}>
+                <option value="">Selecione</option>
+                {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Peso atual (kg)</label>
+              <input type="number" step="0.1" className="form-input" value={form.weight} onChange={e => field('weight', e.target.value)} placeholder="Ex: 75.5" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Altura (cm)</label>
+              <input type="number" className="form-input" value={form.height} onChange={e => field('height', e.target.value)} placeholder="Ex: 175" />
+            </div>
+          </div>
           <div className="form-group">
-            <label className="form-label">Zona-Alvo de Treino</label>
-            <select className="form-select" value={form.trainingZone} onChange={e => field('trainingZone', e.target.value)}>
-              {ZONES.map(z => <option key={z} value={z}>{z || 'Não definido'}</option>)}
-            </select>
+            <label className="form-label">Plano / Mensalidade (R$)</label>
+            <input type="number" step="0.01" className="form-input" value={form.monthlyFee} onChange={e => field('monthlyFee', e.target.value)} placeholder="Ex: 250.00" />
           </div>
           <div className="form-group">
             <label className="form-label">Observações</label>
-            <textarea className="form-textarea" rows={3} value={form.notes} onChange={e => field('notes', e.target.value)} placeholder="Observações, restrições, histórico..." />
+            <textarea className="form-textarea" rows={3} value={form.notes} onChange={e => field('notes', e.target.value)} placeholder="Lesões, restrições, preferências..." />
           </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-outline" onClick={closeModal}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</button>
+          
+          <div className="flex gap-sm mt-md">
+            <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={closeModal}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</button>
           </div>
         </form>
       </Modal>
