@@ -140,7 +140,17 @@ export default function Periodization() {
     setLoading(true);
     const [s, m, c] = await Promise.all([db.getAll('students'), db.getAll('macrocycles'), db.getAll('cycles')]);
     setStudents(s.sort((a, b) => a.name?.localeCompare(b.name)));
-    setMacros(m.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+    
+    const parsedMacros = m.map(macro => {
+      const parsed = { ...macro };
+      if (typeof parsed.weeks === 'string') try { parsed.weeks = JSON.parse(parsed.weeks); } catch(e) { parsed.weeks = []; }
+      if (typeof parsed.weekDetails === 'string') try { parsed.weekDetails = JSON.parse(parsed.weekDetails); } catch(e) { parsed.weekDetails = null; }
+      if (typeof parsed.trainingDays === 'string') try { parsed.trainingDays = JSON.parse(parsed.trainingDays); } catch(e) { parsed.trainingDays = []; }
+      if (!Array.isArray(parsed.weeks)) parsed.weeks = [];
+      return parsed;
+    });
+
+    setMacros(parsedMacros.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
     setCustomCycles(c.filter(cy => cy.isTemplate));
     setLoading(false);
   }
