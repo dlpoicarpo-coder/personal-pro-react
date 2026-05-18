@@ -15,7 +15,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay visible" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={`modal modal-${size}`} role="dialog" aria-modal="true">
         <div className="modal-header">
           <h3 className="modal-title">{title}</h3>
