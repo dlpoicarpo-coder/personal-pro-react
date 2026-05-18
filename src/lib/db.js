@@ -62,9 +62,21 @@ class Database {
       if (trainerId) q = q.eq('trainer_id', trainerId);
       const { data, error } = await q;
       if (error) return local;
-      const remote = data ? data.map(r => r.data) : local;
-      this._saveLocal(storeName, remote, trainerId);
-      return remote;
+      const remote = data ? data.map(r => r.data) : [];
+      
+      // Robust offline-first merge to prevent RLS wiping local data
+      const mergedMap = new Map();
+      local.forEach(item => mergedMap.set(item.id, item));
+      remote.forEach(item => {
+        const existing = mergedMap.get(item.id);
+        if (!existing || new Date(item.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {
+          mergedMap.set(item.id, item);
+        }
+      });
+      const merged = Array.from(mergedMap.values());
+      
+      this._saveLocal(storeName, merged, trainerId);
+      return merged;
     } catch { return local; }
   }
 
