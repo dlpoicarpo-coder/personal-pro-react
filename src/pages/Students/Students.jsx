@@ -53,23 +53,33 @@ export default function Students() {
   function closeModal() { setModalOpen(false); setEditing(null); }
 
   async function handleSave(e) {
-    e.preventDefault();
-    if (!form.name.trim()) { notify('Nome é obrigatório', 'error'); return; }
-    setSaving(true);
-    
-    const item = editing ? { ...editing, ...form } : { ...form };
-    if (!item.code) item.code = item.name.substring(0,3).toUpperCase() + '-' + String(Math.floor(Math.random()*900)+100);
-    if (item.birthDate) item.age = calcAge(item.birthDate);
-    
     try {
+      if (e && e.preventDefault) e.preventDefault();
+      
+      const studentName = form?.name || '';
+      if (!studentName.trim()) { 
+        notify('Nome é obrigatório', 'error'); 
+        return; 
+      }
+      
+      setSaving(true);
+      
+      const item = editing ? { ...editing, ...form } : { ...form };
+      if (!item.code) {
+        item.code = studentName.substring(0, 3).toUpperCase() + '-' + String(Math.floor(Math.random() * 900) + 100);
+      }
+      if (item.birthDate) {
+        item.age = calcAge(item.birthDate);
+      }
+      
       await db.put('students', item);
       notify(editing ? 'Aluno atualizado!' : 'Aluno cadastrado!', 'success');
       setSaving(false);
       closeModal();
-      loadStudents();
+      await loadStudents();
     } catch (err) {
-      console.error(err);
-      notify('Erro ao salvar aluno', 'error');
+      console.error('CRITICAL ERROR in handleSave:', err);
+      notify('Erro interno ao salvar: ' + (err.message || 'Desconhecido'), 'error');
       setSaving(false);
     }
   }
