@@ -349,7 +349,7 @@ export default function Tracker() {
           </div>
           <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 20 }}>{doneSets}/{totalSets} séries · {pct}% concluído</div>
 
-          <div className="grid-2">
+          <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: 'var(--space-md)' }}>
             <div className="card">
               <div className="card-header">
                 <span className="card-title">Exercício {exIdx + 1} / {exs.length}</span>

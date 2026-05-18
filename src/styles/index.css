@@ -366,6 +366,17 @@ h4 {
   background: #dc2626;
 }
 
+.btn-outline {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-outline:hover {
+  background: var(--bg-card);
+  border-color: var(--border-active);
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
