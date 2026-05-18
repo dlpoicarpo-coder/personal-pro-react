@@ -611,28 +611,7 @@ export default function Tracker() {
       {/* View Modal */}
       {viewSession && (
         <Modal isOpen={true} onClose={() => setViewSession(null)} title="Resumo da Sessão" size="lg">
-          <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-            <div className="flex items-center gap-md mb-md">
-              <div className="avatar" style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{viewSession.student?.name?.[0] || '?'}</div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>{viewSession.student?.name || 'Aluno'}</div>
-                <div className="text-muted text-sm">{viewSession.session.workoutName || 'Treino'} · {new Date(viewSession.session.date).toLocaleDateString('pt-BR')}</div>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
-              {[
-                ['Duração', Math.round((viewSession.session.totalDuration||0)/60) + 'min', 'var(--primary)'],
-                ['Volume', (viewSession.session.totalVolume||0) + 'kg', 'var(--primary)'],
-                ['Séries', String(viewSession.session.totalSets||0), 'var(--primary)'],
-                ['PSE', String(viewSession.session.postBiofeedback?.pse||'-'), (viewSession.session.postBiofeedback?.pse||7) > 8 ? 'var(--danger)' : 'var(--success)']
-              ].map(([l, v, c]) => (
-                <div key={l} style={{ textAlign: 'center', padding: 10, background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>{l}</div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: 700, color: c, marginTop: 2 }}>{v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+
           <table className="data-table" style={{ fontSize: '0.82rem' }}>
             <thead><tr><th>Exercício</th><th>Séries</th><th>Reps</th><th>Carga máx</th><th>Volume</th></tr></thead>
             <tbody>
@@ -648,7 +627,7 @@ export default function Tracker() {
                     <td>{sets.length}</td>
                     <td>{totalReps}</td>
                     <td>{maxLoad}kg</td>
-                    <td>{vol}kg</td>
+                    <td>{parseFloat(vol.toFixed(1))}kg</td>
                   </tr>
                 );
               })}
@@ -656,7 +635,16 @@ export default function Tracker() {
           </table>
           {viewSession.session.postBiofeedback?.notes && <p className="text-sm text-muted mt-md">Obs: {viewSession.session.postBiofeedback.notes}</p>}
           <div className="modal-footer" style={{ marginTop: 20 }}>
-            <button className="btn btn-outline" onClick={() => generatePDF(viewSession.session, viewSession.student)}>Exportar PDF</button>
+            <button className="btn btn-outline" onClick={() => {
+              const txt = `Resumo da Sessão: ${viewSession.student?.name||''}\nData: ${new Date(viewSession.session.date).toLocaleDateString('pt-BR')}\nVolume: ${viewSession.session.totalVolume||0}kg`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
+            }}>WhatsApp</button>
+            <button className="btn btn-outline" onClick={() => {
+              const txt = `Resumo da Sessão: ${viewSession.student?.name||''}\nData: ${new Date(viewSession.session.date).toLocaleDateString('pt-BR')}\nVolume: ${viewSession.session.totalVolume||0}kg`;
+              navigator.clipboard?.writeText(txt);
+              notify('Copiado para a área de transferência', 'success');
+            }}>Copiar</button>
+            <button className="btn btn-outline" onClick={() => generatePDF(viewSession.session, viewSession.student)}>PDF</button>
             <button className="btn btn-primary" onClick={() => setViewSession(null)}>Fechar</button>
           </div>
         </Modal>
