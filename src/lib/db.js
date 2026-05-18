@@ -87,8 +87,13 @@ class Database {
 
   async put(storeName, item) {
     const trainerId = await this._getTrainerId();
+    // Normalize id
     if (!item.id && item.key) item.id = item.key;
-    if (!item.id) item.id = crypto.randomUUID();
+    if (!item.id) {
+      item.id = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+        ? crypto.randomUUID() 
+        : 'id-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    }
     item.updatedAt = new Date().toISOString();
     if (!item.createdAt) item.createdAt = new Date().toISOString();
     if (trainerId) item.trainer_id = trainerId;
