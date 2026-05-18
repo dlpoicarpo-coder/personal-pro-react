@@ -44,7 +44,7 @@ export default function Students() {
       const daysSince = last ? Math.floor((Date.now() - new Date(last.date)) / 86400000) : null;
       return { ...s, _lastSession: last, _daysSince: daysSince, _totalSessions: completed.length };
     });
-    setStudents(enriched.sort((a, b) => a.name?.localeCompare(b.name)));
+    setStudents(enriched.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
     setLoading(false);
   }
 
@@ -61,11 +61,17 @@ export default function Students() {
     if (!item.code) item.code = item.name.substring(0,3).toUpperCase() + '-' + String(Math.floor(Math.random()*900)+100);
     if (item.birthDate) item.age = calcAge(item.birthDate);
     
-    await db.put('students', item);
-    notify(editing ? 'Aluno atualizado!' : 'Aluno cadastrado!', 'success');
-    setSaving(false);
-    closeModal();
-    loadStudents();
+    try {
+      await db.put('students', item);
+      notify(editing ? 'Aluno atualizado!' : 'Aluno cadastrado!', 'success');
+      setSaving(false);
+      closeModal();
+      loadStudents();
+    } catch (err) {
+      console.error(err);
+      notify('Erro ao salvar aluno', 'error');
+      setSaving(false);
+    }
   }
 
   async function handleDelete(student) {
@@ -76,7 +82,7 @@ export default function Students() {
   }
 
   const filtered = students.filter(s => {
-    const matchSearch = !search || s.name?.toLowerCase().includes(search.toLowerCase()) || s.code?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || (s.name || '').toLowerCase().includes(search.toLowerCase()) || (s.code || '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === 'all' || s.status === filterStatus;
     return matchSearch && matchStatus;
   });
@@ -116,7 +122,7 @@ export default function Students() {
         ) : (
           <div className="students-grid stagger-children">
             {filtered.map(s => {
-              const initials = s.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+              const initials = (s.name || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
               const age = calcAge(s.birthDate);
               const dayColor = s._daysSince === null ? 'var(--text-muted)' : s._daysSince > 14 ? 'var(--danger)' : s._daysSince > 7 ? 'var(--warning)' : 'var(--success)';
               const phone = s.phone?.replace(/\D/g, '') || '';
