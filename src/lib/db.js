@@ -30,9 +30,16 @@ class Database {
     try {
       const key = this._localKey(storeName, trainerId);
       const data = localStorage.getItem(key);
-      if (data) return JSON.parse(data);
+      if (data) {
+        const parsed = JSON.parse(data);
+        return Array.isArray(parsed) ? parsed : [];
+      }
       const old = localStorage.getItem(`pp_${storeName}`);
-      return old ? JSON.parse(old) : [];
+      if (old) {
+        const parsed = JSON.parse(old);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+      return [];
     } catch { return []; }
   }
 
