@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import db from '../../lib/db';
 import Modal from '../../components/Modal/Modal';
+import { useToast } from '../../components/Toast/Toast';
+import { sendWhatsApp, reminderMsg, preFormMsg, postFormMsg } from '../../lib/whatsapp';
+
 const GOALS = ['Hipertrofia', 'Emagrecimento', 'Condicionamento', 'Força Máxima', 'Saúde', 'Reabilitação', 'Performance', 'Qualidade de Vida'];
 const STATUSES = ['Ativo', 'Inativo', 'Em avaliação', 'Suspenso'];
 const FREQS = ['2x por semana', '3x por semana', '4x por semana', '5x por semana', '6x por semana'];
