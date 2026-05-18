@@ -110,11 +110,13 @@ class Database {
     if (idx >= 0) all[idx] = item; else all.push(item);
     this._saveLocal(storeName, all, trainerId);
 
-    try {
-      const payload = { id: item.id, trainer_id: trainerId || null, data: item };
-      const { error } = await supabase.from(storeName).upsert(payload);
+    if (!supabase) return item;
+
+    // Fire and forget remote sync (don't block UI)
+    const payload = { id: item.id, trainer_id: trainerId || null, data: item };
+    supabase.from(storeName).upsert(payload).then(({ error }) => {
       if (error) console.warn(`Supabase put error (${storeName}):`, error.message);
-    } catch (err) { console.warn('Supabase put exception:', err.message); }
+    }).catch(err => console.warn('Supabase put exception:', err.message));
 
     return item;
   }

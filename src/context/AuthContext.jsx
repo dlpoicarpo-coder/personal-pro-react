@@ -17,8 +17,8 @@ export function AuthProvider({ children }) {
       if (user) {
         db.setUser(user);
         loadTrainerSettings(user);
-        db.seedTemplates().catch(console.error);
-        seedExercises(db).catch(console.error);
+        // db.seedTemplates().catch(console.error);
+        // seedExercises(db).catch(console.error);
       }
       setLoading(false);
     });
@@ -31,8 +31,8 @@ export function AuthProvider({ children }) {
         db.setUser(currentUser);
         loadTrainerSettings(currentUser);
         if (event === 'SIGNED_IN') {
-          db.seedTemplates().catch(console.error);
-          seedExercises(db).catch(console.error);
+          // db.seedTemplates().catch(console.error);
+          // seedExercises(db).catch(console.error);
         }
       } else {
         db.setUser(null);
